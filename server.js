@@ -35,11 +35,6 @@ io.on('connection', (socket) => {
 const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
-// Health check
-app.get("/", (req, res) => {
-  res.send("API is running!");
-});
-
 // Error handler (should be last)
 app.use(errorHandler);
 
