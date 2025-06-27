@@ -112,40 +112,65 @@ exports.verifyOtp = async (req, res, next) => {
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    // Find user by email only
+
+    // Find user by email
     const user = await User.findOne({ email });
     if (!user) return next(new ApiError(400, "Invalid credentials"));
 
-    // Optionally add your verification checks here
+    // Add verification checks
     if (!user.isVerified) return next(new ApiError(403, "Please verify your email."));
     if (!user.isActive) return next(new ApiError(403, "Account is deactivated."));
-    if (!user.isVerifiedByAdmin && !["superadmin", "admin", "subadmin"].includes(user.registerAs))
-      return next(new ApiError(403, "Account not verified by admin yet."));
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return next(new ApiError(400, "Invalid credentials"));
 
+    // Generate JWT token
     const token = jwt.sign(
       { id: user._id, registerAs: user.registerAs },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user._id,
-        registerAs: user.registerAs,
-        fullName: user.fullName,
-        email: user.email,
-        isActive: user.isActive,
-        isVerifiedByAdmin: user.isVerifiedByAdmin
-      }
-    });
+
+    // Cookie options
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "development",
+      sameSite: "strict",
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    };
+
+    // Set token in cookie and send response
+    res
+      .cookie("token", token, cookieOptions)
+      .json({
+        success: true,
+        token,
+        message: "Login successful",
+        user: {
+          id: user._id,
+          registerAs: user.registerAs,
+          fullName: user.fullName,
+          email: user.email,
+          phone: user.phone,
+          isActive: user.isActive,
+          token,
+        },
+      });
+
   } catch (err) {
     next(err);
   }
 };
+
+exports.logout = (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  });
+  res.json({ success: true, message: "Logged out successfully" });
+};
+
 
 
 // List all users (with optional filters, for admin dashboard)
@@ -214,9 +239,6 @@ exports.verifyAccount = async (req, res, next) => {
     user.isVerifiedByAdmin = true;
     await user.save();
 
-    // Optionally, send a verification email here
-    // await sendMail(user.email, "Account Verified", "Your account has been verified by admin!");
-
     res.json({ success: true, message: "Account verified by admin." });
   } catch (err) {
     next(err);
@@ -235,6 +257,96 @@ exports.assignWork = async (req, res, next) => {
     user.assignedTo = assignToId;
     await user.save();
     res.json({ success: true, message: "Work assigned." });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+exports.updatePassword = async (req, res, next) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword) {
+      return next(new ApiError(400, "New password is required"));
+    }
+
+    const user = await User.findById(req.user.id);
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    const io = req.app.get("io");
+    io.emit("user:passwordChanged", {
+      userId: user._id,
+      message: "User changed their password"
+    });
+
+    res.json({ success: true, message: "Password updated successfully" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+exports.updateFullName = async (req, res, next) => {
+  try {
+    const { fullName } = req.body;
+    if (!fullName) return next(new ApiError(400, "Full name is required"));
+
+    const user = await User.findByIdAndUpdate(req.user.id, { fullName }, { new: true });
+
+    const io = req.app.get("io");
+    io.emit("user:updateFullName", {
+      userId: user._id,
+      fullName: user.fullName
+    });
+
+    res.json({ success: true, message: "Full name updated successfully", user });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+exports.updatePhone = async (req, res, next) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return next(new ApiError(400, "Phone number is required"));
+
+    const existingUser = await User.findOne({ phone });
+    if (existingUser && existingUser.id !== req.user.id) {
+      return next(new ApiError(409, "Phone number already in use"));
+    }
+
+    const user = await User.findByIdAndUpdate(req.user.id, { phone }, { new: true });
+
+    const io = req.app.get("io");
+    io.emit("user:updatePhone", {
+      userId: user._id,
+      phone: user.phone
+    });
+
+    res.json({ success: true, message: "Phone number updated successfully", user });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+exports.getUserById = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    if (!user) return next(new ApiError(404, "User not found"));
+    res.json({ success: true, user });
+  } catch (err) {
+    next(err);
+  }
+}
+
+exports.getUsers = async (req, res, next) => {
+  try {
+    const users = await User.find().select('-password');
+    res.json({ success: true, users });
   } catch (err) {
     next(err);
   }

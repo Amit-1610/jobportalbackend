@@ -14,7 +14,6 @@ const userSchema = new mongoose.Schema({
   otpExpire: Date,
   isVerified: { type: Boolean, default: false }, 
   acceptTerms: {type: Boolean, default: false},       // Email/OTP verification
-  isVerifiedByAdmin: { type: Boolean, default: false }, // Admin/superadmin verification
   isActive: { type: Boolean, default: true },           // Deactivate by admin/superadmin
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now },

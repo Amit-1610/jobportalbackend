@@ -21,7 +21,11 @@ app.use(morgan("dev"));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(cors());
+const corsOptions = {
+  origin: 'http://localhost:5173',
+  credentials: true, // Allow credentials (cookies, authorization headers, etc.)
+}
+app.use(cors(corsOptions));
 
 // Socket.IO logs
 io.on('connection', (socket) => {
@@ -33,6 +37,15 @@ io.on('connection', (socket) => {
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
+const employerRoutes = require('./routes/employerRoutes');
+const collegeRoutes = require('./routes/collegeRoutes');
+const agencyRoutes = require('./routes/agencyRoutes');
+const jobSeekerRoutes = require('./routes/jobSeekerRoutes');
+
+app.use('/api/employers', employerRoutes);
+app.use('/api/colleges', collegeRoutes);
+app.use('/api/agencies', agencyRoutes);
+app.use('/api/jobseekers', jobSeekerRoutes);
 app.use('/api/auth', authRoutes);
 
 // Error handler (should be last)
