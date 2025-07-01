@@ -5,7 +5,16 @@ const { protect } = require("../middlewares/auth");
 const { allowRoles } = require("../middlewares/roles");
 
 // CREATE profile
-router.post("/", protect, multer.single("file"), jobSeekerCtrl.create);
+router.post(
+  "/",
+  protect,
+  multer.fields([
+    { name: "profilePhoto", maxCount: 1 },
+    { name: "aadhaar", maxCount: 1 },
+    { name: "resume", maxCount: 1 }
+  ]),
+  jobSeekerCtrl.create
+);
 
 // READ all profiles
 router.get("/all", jobSeekerCtrl.getAll);
@@ -14,7 +23,16 @@ router.get("/all", jobSeekerCtrl.getAll);
 router.get("/single/:id", jobSeekerCtrl.getById);
 
 // UPDATE profile
-router.put("/update/:id", protect, multer.single("file"), jobSeekerCtrl.update);
+router.put(
+  "/update/:id",
+  protect,
+  multer.fields([
+    { name: "profilePhoto", maxCount: 1 },
+    { name: "aadhaar", maxCount: 1 },
+    { name: "resume", maxCount: 1 }
+  ]),
+  jobSeekerCtrl.update
+);
 
 // DELETE profile
 router.delete("/delete/:id", protect, jobSeekerCtrl.remove);

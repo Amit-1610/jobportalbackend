@@ -5,7 +5,14 @@ const ApiError = require("../errors/ApiError");
 exports.create = async (req, res, next) => {
   try {
     const data = { ...req.body, user: req.user._id, fullName: req.user.fullName, email: req.user.email, phone: req.user.phone };
-    if (req.file) data.logo = (await cloudinary.uploader.upload(req.file.path, { folder: "profiles" })).secure_url;
+    if (req.files) {
+      if (req.files.logo)
+        data.logo = (await cloudinary.uploader.upload(req.files.logo[0].path, { folder: "profiles" })).secure_url;
+      if (req.files.panCard)
+        data["idDocs"] = { panCard: (await cloudinary.uploader.upload(req.files.panCard[0].path, { folder: "profiles" })).secure_url };
+      if (req.files.license)
+        data.license = (await cloudinary.uploader.upload(req.files.license[0].path, { folder: "profiles" })).secure_url;
+    }
     const profile = await Employer.create(data);
     req.app.get("io").emit("employer:created", { id: profile._id });
     res.status(201).json({ success: true, profile });
@@ -25,7 +32,14 @@ exports.getById = async (req, res, next) => {
 exports.update = async (req, res, next) => {
   try {
     const updates = req.body;
-    if (req.file) updates.logo = (await cloudinary.uploader.upload(req.file.path, { folder: "profiles" })).secure_url;
+    if (req.files) {
+      if (req.files.logo)
+        data.logo = (await cloudinary.uploader.upload(req.files.logo[0].path, { folder: "profiles" })).secure_url;
+      if (req.files.panCard)
+        data["idDocs"] = { panCard: (await cloudinary.uploader.upload(req.files.panCard[0].path, { folder: "profiles" })).secure_url };
+      if (req.files.license)
+        data.license = (await cloudinary.uploader.upload(req.files.license[0].path, { folder: "profiles" })).secure_url;
+    }
     const profile = await Employer.findByIdAndUpdate(req.params.id, updates, { new: true });
     if (!profile) return next(new ApiError(404, "Not found"));
     req.app.get("io").emit("employer:updated", { id: profile._id });

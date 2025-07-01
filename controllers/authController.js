@@ -4,7 +4,8 @@ const jwt = require("jsonwebtoken");
 const sendMail = require("../services/otpMailer");
 const generateOTP = require("../utils/otp");
 const ApiError = require("../errors/ApiError");
-
+const { accountVerifiedTemplate } = require("../utils/verifyMailDesign");
+const { verificationAccountMail } = require("../services/verifyAccountMail");
 
 
 // Register new user
@@ -84,8 +85,6 @@ exports.register = async (req, res, next) => {
     next(err);
   }
 };
-
-
 
 // Verify OTP
 exports.verifyOtp = async (req, res, next) => {
@@ -238,6 +237,18 @@ exports.verifyAccount = async (req, res, next) => {
 
     user.isVerifiedByAdmin = true;
     await user.save();
+
+    // Send a pretty, branded verification email
+    try {
+      await verificationAccountMail({
+        email: user.email,
+        subject: "Your Gajanan Skill Tech Account is Verified!",
+        message: `Dear ${user.fullName}, your account has been verified.`, // fallback text
+        html: accountVerifiedTemplate(user.fullName),  // HTML template
+      });
+    } catch (mailErr) {
+      console.error('Mail send error:', mailErr);
+    }
 
     res.json({ success: true, message: "Account verified by admin." });
   } catch (err) {
